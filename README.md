@@ -28,7 +28,7 @@ flowchart LR
     H --> E[Optional entity-graph<br/>1-hop expansion]
     E --> R[Cross-encoder reranker<br/>blended with first-stage score]
     R --> G[Grounded generator<br/>evidence-only prompt]
-    G --> V[Citation verifier<br/>NLI entailment<br/>nli-MiniLM2-L6]
+    G --> V[Citation verifier<br/>NLI entailment<br/>nli-deberta-v3-small]
     V --> A[Answer + citations<br/>+ evidence]
 ```
 
