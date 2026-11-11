@@ -1,17 +1,25 @@
-"""FastAPI service for retrieval and grounded answers."""
+"""FastAPI service and showcase UI for retrieval and grounded answers."""
 
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
+from time import perf_counter
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .config import load_settings
 from .generate.answer import AnswerGenerator
 from .generate.verify import CitationVerifier
 from .retrieve import Retriever
+from .schema import ScoredChunk
+
+STATIC_DIR = Path(__file__).parent / "static"
+UNKNOWN_ANSWER = "I don't know. The indexed documents do not contain enough evidence to answer this question."
+UNKNOWN_DETAIL = "The indexed documents do not contain enough evidence to answer this question."
 
 
 class SearchRequest(BaseModel):
@@ -31,13 +39,30 @@ def components(config_path: str | None = None):
     return settings, Retriever(settings), AnswerGenerator(settings)
 
 
+def _evidence(hits: list[ScoredChunk]) -> list[dict]:
+    return [
+        {
+            "rank": hit.rank,
+            "score": round(hit.score, 5),
+            "chunk_id": hit.chunk.chunk_id,
+            "citation": hit.chunk.citation,
+            "source": hit.chunk.source,
+            "corpus": hit.chunk.corpus,
+            "retriever": hit.retriever,
+            "text": hit.chunk.body,
+        }
+        for hit in hits
+    ]
+
+
 def create_app(config_path: str | None = None) -> FastAPI:
     app = FastAPI(title="AyurRAG", version="0.1.0")
     settings, retriever, generator = components(config_path)
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
-        return INDEX_HTML
+        return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
 
     @app.get("/health")
     def health() -> dict:
@@ -45,7 +70,7 @@ def create_app(config_path: str | None = None) -> FastAPI:
 
     @app.post("/search")
     def search(request: SearchRequest) -> dict:
-        hits = retriever.search(
+        hits, trace = retriever.search_with_trace(
             request.query,
             top_k=request.top_k,
             source=request.source,
@@ -53,91 +78,77 @@ def create_app(config_path: str | None = None) -> FastAPI:
         )
         return {
             "query": request.query,
-            "results": [
-                {
-                    "rank": hit.rank,
-                    "score": round(hit.score, 5),
-                    "chunk_id": hit.chunk.chunk_id,
-                    "citation": hit.chunk.citation,
-                    "source": hit.chunk.source,
-                    "corpus": hit.chunk.corpus,
-                    "text": hit.chunk.body,
-                }
-                for hit in hits
-            ],
+            "results": _evidence(hits),
+            "trace": trace,
         }
 
     @app.post("/ask")
     def ask(request: AskRequest) -> dict:
-        hits = retriever.search(
+        started = perf_counter()
+        hits, trace = retriever.search_with_trace(
             request.query,
             top_k=request.top_k,
             source=request.source,
             corpus=request.corpus,
         )
+        retrieval_done = perf_counter()
+        search_total = trace.get("timings_ms", {}).get("total")
+
         answer = generator.generate(request.query, hits)
-        if request.verify and answer.citations:
-            answer = CitationVerifier().verify(answer)
+        generation_done = perf_counter()
+
+        verifier = CitationVerifier()
+        if request.verify and answer.citations and not answer.insufficient_evidence:
+            answer = verifier.verify(answer)
+        verification_done = perf_counter()
+
+        # When the answer is withheld, the model's explanation is not the
+        # delivered answer; do not present citations for it as if they were
+        # support for the final text.
+        citations = [] if answer.insufficient_evidence else answer.citations
+        supported = sum(1 for citation in citations if citation.supported is True)
+        unsupported = sum(1 for citation in citations if citation.supported is False)
+        unverified = len(citations) - supported - unsupported
+
+        trace.setdefault("timings_ms", {})
+        trace["timings_ms"].update(
+            {
+                "search_total": search_total,
+                "generation": round((generation_done - retrieval_done) * 1000, 1),
+                "verification": round((verification_done - generation_done) * 1000, 1),
+                "total": round((verification_done - started) * 1000, 1),
+            }
+        )
+        trace["generation"] = {
+            "model": answer.metadata.get("model") or settings.llm.model,
+            "n_evidence": len(hits),
+        }
+        trace["verification"] = {
+            "enabled": request.verify,
+            "model": verifier.model_name if request.verify and citations else None,
+            "citations": len(citations),
+            "supported": supported,
+            "unsupported": unsupported,
+            "unverified": unverified,
+        }
+
+        model_explanation = None
+        if answer.insufficient_evidence:
+            model_explanation = answer.answer
+            answer_text = UNKNOWN_ANSWER
+        else:
+            answer_text = answer.answer
+
         payload = answer.model_dump()
-        payload["evidence"] = [
-            {"rank": hit.rank, "score": round(hit.score, 5), "citation": hit.chunk.citation, "text": hit.chunk.body}
-            for hit in hits
-        ]
+        payload["answer"] = answer_text
+        payload["citations"] = [citation.model_dump() for citation in citations]
+        payload["model_explanation"] = model_explanation
+        payload["display_message"] = UNKNOWN_DETAIL if answer.insufficient_evidence else None
+        payload["evidence"] = _evidence(hits)
+        payload["trace"] = trace
         return payload
 
     return app
 
 
 app = create_app()
-
-
-INDEX_HTML = """<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AyurRAG</title>
-<style>
-  :root { color-scheme: light dark; --fg:#1b1b1b; --muted:#666; --border:#d8d8d8; --surface:#fff; }
-  @media (prefers-color-scheme: dark) { :root { --fg:#e8e8e8; --muted:#aaa; --border:#444; --surface:#1e1e1e; } }
-  body { font: 15px/1.55 system-ui, sans-serif; color:var(--fg); background:var(--surface); max-width: 860px; margin: 3rem auto; padding: 0 1rem; }
-  h1 { font-size: 1.4rem; margin-bottom: .25rem; }
-  p.sub { color: var(--muted); margin-top: 0; }
-  form { display:flex; gap:.5rem; margin:1.5rem 0; }
-  input { flex:1; padding:.6rem .7rem; border:1px solid var(--border); border-radius:6px; background:transparent; color:var(--fg); }
-  button { padding:.6rem 1rem; border-radius:6px; border:1px solid var(--border); background:var(--fg); color:var(--surface); cursor:pointer; }
-  .answer { white-space:pre-wrap; border-left:3px solid var(--border); padding-left:1rem; }
-  .cite { color:var(--muted); font-size:.85rem; }
-  .err { color:#b00020; }
-  details { margin-top:1rem; }
-  summary { cursor:pointer; color:var(--muted); }
-  pre { white-space:pre-wrap; font-size:.85rem; }
-</style>
-</head>
-<body>
-<h1>AyurRAG</h1>
-<p class="sub">Evidence-grounded Ayurveda, patents, literature and IPR research. Every claim is cited; the expert decides.</p>
-<form id="f">
-  <input id="q" placeholder="e.g. What does Charaka say about the three pillars of health?" required>
-  <button>Ask</button>
-</form>
-<div id="out"></div>
-<script>
-const f = document.getElementById('f'), out = document.getElementById('out');
-f.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  out.innerHTML = '<p class="cite">Retrieving evidence and generating a grounded answer…</p>';
-  try {
-    const r = await fetch('/ask', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({query: document.getElementById('q').value, top_k: 8})});
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.detail || 'request failed');
-    const cites = (d.citations || []).map(c => `<li><code>${c.marker}</code> ${c.citation} <span class="cite">${c.supported === false ? '— unsupported' : c.supported === true ? '— supported' : ''}</span></li>`).join('');
-    out.innerHTML = `<div class="answer">${d.answer.replace(/</g,'&lt;')}</div>
-      ${d.insufficient_evidence ? '<p class="cite">Flagged: insufficient evidence.</p>' : ''}
-      <h3>Citations</h3><ul class="cite">${cites || '<li>none</li>'}</ul>
-      <details><summary>Retrieved evidence</summary><pre>${d.evidence.map(e => `[${e.rank}] ${e.citation}\\n${e.text}`).join('\\n\\n').replace(/</g,'&lt;')}</pre></details>`;
-  } catch (err) { out.innerHTML = `<p class="err">${err.message}</p>`; }
-});
-</script>
-</body>
-</html>"""

@@ -74,6 +74,7 @@ class RetrievalConfig(BaseModel):
     graph_hops: int = 1
     query_expansion: bool = True
     max_subqueries: int = 0
+    alias_weight: float = 0.3
     subquery_weight: float = 0.2
     mmr: bool = False
     mmr_lambda: float = 0.75

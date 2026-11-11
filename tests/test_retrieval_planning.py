@@ -21,5 +21,14 @@ def test_plan_expands_known_entity_aliases():
     assert "withania" in alias_text.lower()
 
 
+def test_alias_variant_uses_configured_weight_and_skips_query_phrases():
+    cfg = RetrievalConfig(max_subqueries=0, alias_weight=0.4)
+    variants = plan_queries("What does Charaka say about the three pillars of health?", cfg)
+    alias = next(variant for variant in variants if variant.kind == "aliases")
+    assert alias.weight == 0.4
+    assert "three pillars of health" not in alias.text.lower()
+    assert "three subsupports" in alias.text.lower()
+
+
 def test_normalize_bounds():
     assert _normalize({"a": 2.0, "b": 4.0, "c": 6.0}) == {"a": 0.0, "b": 0.5, "c": 1.0}

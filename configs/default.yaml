@@ -41,6 +41,7 @@ retrieval:
   graph_hops: 1
   query_expansion: true
   max_subqueries: 0
+  alias_weight: 0.3
   subquery_weight: 0.2
   mmr: false
   mmr_lambda: 0.75

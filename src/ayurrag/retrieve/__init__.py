@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from dataclasses import dataclass
 
 from ..config import Settings
@@ -82,15 +83,19 @@ def plan_queries(
 
     entities = extract_entities(query)
     if entities:
-        query_tokens = {token.lower() for token in WORD_RE.findall(query)}
+        normalized_query = " ".join(query.lower().split())
         aliases: list[str] = []
+        seen_aliases: set[str] = set()
         for entity in entities:
             for alias in aliases_for(entity):
-                if alias.lower() not in query_tokens and len(alias) > 2:
-                    aliases.append(alias)
-        aliases = list(dict.fromkeys(aliases))[:12]
+                key = " ".join(alias.lower().split())
+                if key in seen_aliases or key in normalized_query or len(alias) <= 2:
+                    continue
+                seen_aliases.add(key)
+                aliases.append(alias)
+        aliases = aliases[:12]
         if aliases:
-            variants.append(QueryVariant(" ".join(aliases), 0.15, "aliases"))
+            variants.append(QueryVariant(" ".join(aliases), cfg.alias_weight, "aliases"))
 
     subquery_limit = cfg.max_subqueries if max_subqueries is None else max_subqueries
     if subquery_limit:
@@ -167,6 +172,7 @@ class Retriever:
         rerank_blend: float | None = None,
         use_mmr: bool | None = None,
         max_subqueries: int | None = None,
+        _trace: dict | None = None,
     ) -> list[ScoredChunk]:
         cfg = self.settings.retrieval
         top_k = top_k or cfg.final_top_k
@@ -179,18 +185,54 @@ class Retriever:
         bm25_weight = cfg.bm25_weight if bm25_weight is None else bm25_weight
         dense_weight = cfg.dense_weight if dense_weight is None else dense_weight
         allowed = self.store.filter_ids(source=source, corpus=corpus) if (source or corpus) else None
+        started = time.perf_counter()
 
         variants = plan_queries(query, cfg, use_expansion, max_subqueries)
+        trace = _trace if _trace is not None else {}
+        trace.update(
+            {
+                "query": query,
+                "entities": extract_entities(query),
+                "variants": [
+                    {"kind": variant.kind, "text": variant.text, "weight": variant.weight}
+                    for variant in variants
+                ],
+                "channels": [],
+                "config": {
+                    "fusion": fusion,
+                    "bm25_weight": bm25_weight,
+                    "dense_weight": dense_weight,
+                    "candidate_top_k": cfg.candidate_top_k,
+                    "rerank_top_n": cfg.rerank_top_n,
+                    "rerank_blend": rerank_blend,
+                    "graph_expansion": use_graph,
+                    "query_expansion": use_expansion,
+                    "mmr": use_mmr,
+                },
+            }
+        )
         fused: dict[str, float] = {}
 
         for variant in variants:
             channels: list[tuple[str, list[str], list[float]]] = []
+            bm25_count = 0
+            dense_count = 0
             if use_bm25:
                 ids, scores = self._bm25(variant.text, cfg.bm25_top_k, allowed)
+                bm25_count = len(ids)
                 channels.append(("bm25", ids, scores))
             if use_dense:
                 ids, scores = self._dense(variant.text, cfg.dense_top_k, allowed)
+                dense_count = len(ids)
                 channels.append(("dense", ids, scores))
+            trace["channels"].append(
+                {
+                    "kind": variant.kind,
+                    "query": variant.text,
+                    "bm25": bm25_count,
+                    "dense": dense_count,
+                }
+            )
 
             if fusion == "rrf":
                 for name, ids, _scores in channels:
@@ -207,6 +249,7 @@ class Retriever:
                 for chunk_id, score in normalized.items():
                     fused[chunk_id] = fused.get(chunk_id, 0.0) + variant.weight * score
 
+        graph_ids: list[str] = []
         if use_graph:
             graph_ids = self._graph_candidates(query, allowed, hops=cfg.graph_hops)
             total = max(1, len(graph_ids))
@@ -217,6 +260,14 @@ class Retriever:
         candidates = self.store.get_many(ranked_ids)
         ordered_ids = [chunk_id for chunk_id in ranked_ids if chunk_id in candidates]
         ordered = [candidates[chunk_id] for chunk_id in ordered_ids]
+        retrieval_done = time.perf_counter()
+        trace["fusion"] = {
+            "method": fusion,
+            "pool_size": len(fused),
+            "candidate_count": len(ordered_ids),
+            "graph_candidates": len(graph_ids),
+        }
+        trace["timings_ms"] = {"retrieval": round((retrieval_done - started) * 1000, 1)}
 
         if use_rerank:
             rerank_scores = self.reranker.score(query, ordered[: cfg.rerank_top_n])
@@ -241,9 +292,22 @@ class Retriever:
 
         if use_mmr and len(scored) > top_k:
             scored = self._mmr(query, scored, cfg.mmr_pool, cfg.mmr_lambda, top_k)
+        trace["rerank"] = {
+            "enabled": use_rerank,
+            "model": cfg.reranker,
+            "candidate_count": min(len(ordered_ids), cfg.rerank_top_n) if use_rerank else 0,
+            "blend": rerank_blend,
+        }
+        trace["timings_ms"]["total"] = round((time.perf_counter() - started) * 1000, 1)
         for rank, item in enumerate(scored):
             item.rank = rank + 1
         return scored[:top_k]
+
+    def search_with_trace(self, query: str, **kwargs) -> tuple[list[ScoredChunk], dict]:
+        """Run retrieval and return the stage-by-stage trace used by the UI."""
+        trace: dict = {}
+        hits = self.search(query, _trace=trace, **kwargs)
+        return hits, trace
 
     def _mmr(
         self,

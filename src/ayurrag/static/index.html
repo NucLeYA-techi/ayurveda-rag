@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Evidence-grounded Ayurveda, patent, literature and IPR research assistant.">
+  <title>AyurRAG — evidence-grounded research</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="page">
+    <header class="masthead">
+      <div>
+        <a class="wordmark" href="/">AyurRAG</a>
+        <p class="tagline">Ayurveda, literature, patents and IPR — retrieve, correlate, explain, cite.</p>
+      </div>
+      <a class="top-link" href="/docs">API</a>
+    </header>
+
+    <main>
+      <section class="query-block" aria-labelledby="query-label">
+        <form id="ask-form">
+          <label id="query-label" for="query">Research question</label>
+          <div class="query-row">
+            <input id="query" name="query" type="text" autocomplete="off" spellcheck="false"
+                   placeholder="e.g. What does Charaka say about the three pillars of health?" required>
+            <button id="ask-button" type="submit">Ask</button>
+          </div>
+          <div class="query-options">
+            <div class="source-picker">
+              <label for="source">Corpus</label>
+              <select id="source" name="source">
+                <option value="">All sources</option>
+                <option value="charaka">Charaka Samhita</option>
+                <option value="sushruta">Sushruta Samhita</option>
+                <option value="pubmed">PubMed literature</option>
+                <option value="patents">Patents</option>
+                <option value="legal">Statutes &amp; conventions</option>
+              </select>
+            </div>
+            <div class="examples" aria-label="Example questions">
+              Try
+              <button class="example" type="button" data-example="What does Charaka say about the three pillars of health?">three pillars</button>,
+              <button class="example" type="button" data-example="What clinical evidence exists for ashwagandha in stress?">ashwagandha stress</button>,
+              <button class="example" type="button" data-example="What does section 3 of the Patents Act exclude from patentability?">section 3 patents</button>
+            </div>
+          </div>
+        </form>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </section>
+
+      <section id="result" class="result" hidden aria-live="polite">
+        <p class="kicker">Answer</p>
+        <h1 id="question" class="question"></h1>
+
+        <div class="answer-section">
+          <div id="answer-block" class="answer-block"></div>
+          <div id="verdict" class="verdict"></div>
+        </div>
+
+        <section class="trace-block" aria-labelledby="trace-title">
+          <div class="trace-heading">
+            <h2 id="trace-title">How this answer was produced</h2>
+            <span id="trace-total"></span>
+          </div>
+          <ol id="trace-list" class="trace-list"></ol>
+        </section>
+
+        <details class="raw" id="evidence-details">
+          <summary>Retrieved evidence <span id="evidence-count" class="count"></span></summary>
+          <div id="evidence-list" class="evidence-list"></div>
+        </details>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Research support only. Legal findings are potentially relevant provisions, not conclusions on patentability or infringement. Medical statements are not diagnosis or treatment advice. Every answer is limited to the indexed public corpus.</p>
+    </footer>
+  </div>
+
+  <noscript>This page needs JavaScript to call the research API.</noscript>
+  <script src="/static/app.js"></script>
+</body>
+</html>

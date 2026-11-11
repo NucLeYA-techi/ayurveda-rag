@@ -70,8 +70,34 @@ ayurrag serve                  # FastAPI on 127.0.0.1:8080
 ```
 
 The LLM endpoint is OpenAI-compatible and configured in `configs/default.yaml`
-(`http://127.0.0.1:8000/v1` by default). No key is required by the local proxy;
-set `AYURRAG_LLM_API_KEY` for a hosted endpoint.
+(`http://127.0.0.1:8000/v1` by default). Set `AYURRAG_LLM_API_KEY` to the bearer
+token the endpoint expects:
+
+```bash
+export AYURRAG_LLM_API_KEY="..."
+ayurrag serve
+```
+
+## Web UI and API
+
+`ayurrag serve` (or `uvicorn ayurrag.api:app --port 8080`) serves a single-page
+research interface at `http://127.0.0.1:8080/`. The UI exposes the corpus filter,
+renders `[S#]` markers against the retrieved passages, and shows the stage-by-stage
+retrieval trace: query variants, BM25/dense candidate counts, fusion, reranking,
+evidence selection, generation and NLI citation verification. When the generator
+sets `insufficient_evidence`, the API withholds the answer and returns a plain
+"I don't know" message rather than displaying an unsupported explanation.
+
+The same surface is available programmatically:
+
+```http
+POST /search   {"query": "...", "top_k": 8, "source": "charaka"}
+POST /ask      {"query": "...", "top_k": 8, "source": "charaka", "verify": true}
+GET  /health
+```
+
+`/ask` returns the answer, structured citations, evidence, and a `trace` object;
+`/search` returns ranked evidence and the retrieval trace without calling the LLM.
 
 ## Evaluation
 
