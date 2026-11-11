@@ -1,0 +1,518 @@
+{
+  "herb": {
+    "Ashwagandha": [
+      "ashwagandha",
+      "ashwagandha",
+      "withania somnifera",
+      "indian ginseng",
+      "winter cherry",
+      "asgandh",
+      "asgandha"
+    ],
+    "Brahmi": [
+      "brahmi",
+      "bacopa monnieri",
+      "bacopa",
+      "water hyssop",
+      "thyme-leaved gratiola"
+    ],
+    "Turmeric": [
+      "turmeric",
+      "curcuma longa",
+      "haridra",
+      "haldi",
+      "curcumin"
+    ],
+    "Neem": [
+      "neem",
+      "azadirachta indica",
+      "nimba",
+      "margosa"
+    ],
+    "Guduchi": [
+      "guduchi",
+      "tinospora cordifolia",
+      "giloy",
+      "amrita",
+      "heart-leaved moonseed"
+    ],
+    "Shatavari": [
+      "shatavari",
+      "asparagus racemosus",
+      "satavar",
+      "shatawari"
+    ],
+    "Amalaki": [
+      "amalaki",
+      "amla",
+      "emblica officinalis",
+      "indian gooseberry"
+    ],
+    "Haritaki": [
+      "haritaki",
+      "terminalia chebula",
+      "chebulic myrobalan",
+      "kadukkai"
+    ],
+    "Bibhitaki": [
+      "bibhitaki",
+      "terminalia bellirica",
+      "bahera",
+      "belleric myrobalan"
+    ],
+    "Triphala": [
+      "triphala",
+      "triphala churna"
+    ],
+    "Guggulu": [
+      "guggulu",
+      "guggul",
+      "commiphora mukul",
+      "commiphora wightii",
+      "indian bdellium"
+    ],
+    "Tulsi": [
+      "tulsi",
+      "ocimum sanctum",
+      "ocimum tenuiflorum",
+      "holy basil"
+    ],
+    "Yashtimadhu": [
+      "yashtimadhu",
+      "licorice",
+      "liquorice",
+      "glycyrrhiza glabra",
+      "mulethi"
+    ],
+    "Shunthi": [
+      "shunthi",
+      "ginger",
+      "zingiber officinale",
+      "adrak",
+      "sonth"
+    ],
+    "Maricha": [
+      "maricha",
+      "black pepper",
+      "piper nigrum"
+    ],
+    "Pippali": [
+      "pippali",
+      "long pepper",
+      "piper longum"
+    ],
+    "Vasaka": [
+      "vasaka",
+      "adhatoda vasica",
+      "adhatoda zeylanica",
+      "malabar nut"
+    ],
+    "Punarnava": [
+      "punarnava",
+      "boerhavia diffusa",
+      "spreading hogweed"
+    ],
+    "Manjistha": [
+      "manjistha",
+      "rubia cordifolia",
+      "indian madder"
+    ],
+    "Arjuna": [
+      "arjuna",
+      "terminalia arjuna",
+      "arjun tree"
+    ],
+    "Shankhpushpi": [
+      "shankhpushpi",
+      "convolvulus pluricaulis",
+      "clitoria ternatea"
+    ],
+    "Jatamansi": [
+      "jatamansi",
+      "nardostachys jatamansi",
+      "spikenard"
+    ],
+    "Bhringraj": [
+      "bhringraj",
+      "eclipta alba",
+      "eclipta prostrata",
+      "false daisy"
+    ],
+    "Kutki": [
+      "kutki",
+      "picrorhiza kurroa",
+      "katuki"
+    ],
+    "Vidanga": [
+      "vidanga",
+      "embelia ribes"
+    ],
+    "Chandana": [
+      "chandana",
+      "sandalwood",
+      "santalum album"
+    ],
+    "Safed Musli": [
+      "safed musli",
+      "chlorophytum borivilianum"
+    ],
+    "Chyawanprash": [
+      "chyawanprash",
+      "chyavanprasha",
+      "chyawanprasha"
+    ],
+    "Dashamula": [
+      "dashamula",
+      "dashmool",
+      "ten roots"
+    ]
+  },
+  "dosha": {
+    "Vata": [
+      "vata",
+      "vayu",
+      "vatta",
+      "vaata"
+    ],
+    "Pitta": [
+      "pitta",
+      "pittam"
+    ],
+    "Kapha": [
+      "kapha",
+      "kapham",
+      "shleshma",
+      "sleshma"
+    ],
+    "Tridosha": [
+      "tridosha",
+      "three doshas"
+    ],
+    "Prakriti": [
+      "prakriti",
+      "prakruti",
+      "constitution"
+    ],
+    "Vikriti": [
+      "vikriti",
+      "vikruti"
+    ],
+    "Agni": [
+      "agni",
+      "digestive fire",
+      "jatharagni"
+    ],
+    "Ama": [
+      "ama",
+      "toxin",
+      "undigested"
+    ],
+    "Ojas": [
+      "ojas"
+    ],
+    "Dhatu": [
+      "dhatu",
+      "dhatus",
+      "tissues"
+    ],
+    "Srotas": [
+      "srotas",
+      "channels"
+    ],
+    "Samprapti": [
+      "samprapti",
+      "pathogenesis"
+    ]
+  },
+  "therapy": {
+    "Panchakarma": [
+      "panchakarma",
+      "pancha karma",
+      "five therapies"
+    ],
+    "Vamana": [
+      "vamana",
+      "emesis therapy",
+      "therapeutic vomiting"
+    ],
+    "Virechana": [
+      "virechana",
+      "purgation therapy"
+    ],
+    "Basti": [
+      "basti",
+      "enema therapy",
+      "vasti"
+    ],
+    "Nasya": [
+      "nasya",
+      "nasal therapy"
+    ],
+    "Raktamokshana": [
+      "raktamokshana",
+      "bloodletting"
+    ],
+    "Snehana": [
+      "snehana",
+      "oleation"
+    ],
+    "Svedana": [
+      "svedana",
+      "sudation",
+      "fomentation"
+    ],
+    "Rasayana": [
+      "rasayana",
+      "rejuvenation"
+    ],
+    "Vajikarana": [
+      "vajikarana",
+      "aphrodisiac therapy"
+    ]
+  },
+  "disease": {
+    "Jwara": [
+      "jwara",
+      "jvara",
+      "fever"
+    ],
+    "Atisara": [
+      "atisara",
+      "diarrhea",
+      "diarrhoea"
+    ],
+    "Grahani": [
+      "grahani",
+      "irritable bowel",
+      "chronic diarrhea"
+    ],
+    "Prameha": [
+      "prameha",
+      "diabetes",
+      "madhumeha"
+    ],
+    "Kushtha": [
+      "kushtha",
+      "kushta",
+      "skin disease",
+      "leprosy"
+    ],
+    "Shwasa": [
+      "shwasa",
+      "svasa",
+      "asthma",
+      "dyspnea"
+    ],
+    "Kasa": [
+      "kasa",
+      "cough"
+    ],
+    "Hridroga": [
+      "hridroga",
+      "heart disease"
+    ],
+    "Unmada": [
+      "unmada",
+      "psychosis",
+      "insanity"
+    ],
+    "Apasmara": [
+      "apasmara",
+      "epilepsy"
+    ],
+    "Amavata": [
+      "amavata",
+      "rheumatoid arthritis"
+    ],
+    "Sandhivata": [
+      "sandhivata",
+      "osteoarthritis"
+    ],
+    "Gridhrasi": [
+      "gridhrasi",
+      "sciatica"
+    ],
+    "Kamala": [
+      "kamala",
+      "jaundice"
+    ],
+    "Pandu": [
+      "pandu",
+      "anemia",
+      "anaemia"
+    ],
+    "Raktapitta": [
+      "raktapitta",
+      "bleeding disorder"
+    ],
+    "Arsha": [
+      "arsha",
+      "piles",
+      "hemorrhoids"
+    ],
+    "Ashmari": [
+      "ashmari",
+      "urinary calculi",
+      "kidney stones"
+    ],
+    "Bhagandara": [
+      "bhagandara",
+      "fistula-in-ano"
+    ],
+    "Yonivyapada": [
+      "yonivyapada",
+      "gynecological disorder"
+    ]
+  },
+  "text": {
+    "Charaka Samhita": [
+      "charaka samhita",
+      "caraka samhita",
+      "charaka",
+      "caraka"
+    ],
+    "Sushruta Samhita": [
+      "sushruta samhita",
+      "susruta samhita",
+      "sushruta",
+      "susruta"
+    ],
+    "Ashtanga Hridaya": [
+      "ashtanga hridaya",
+      "astanga hridaya",
+      "ashtangahridaya",
+      "vagbhata"
+    ],
+    "Bhavaprakasha": [
+      "bhavaprakasha",
+      "bhavaprakasa",
+      "bhavaprakasha nighantu"
+    ],
+    "Madhava Nidana": [
+      "madhava nidana",
+      "madhava nidanam"
+    ],
+    "Sharngadhara Samhita": [
+      "sharngadhara samhita",
+      "sarangadhara samhita"
+    ],
+    "Rasa Shastra": [
+      "rasa shastra",
+      "rasashastra",
+      "rasa sastra"
+    ],
+    "Dravyaguna": [
+      "dravyaguna",
+      "dravya guna"
+    ],
+    "Bhaishajya Kalpana": [
+      "bhaishajya kalpana",
+      "bhaishajya kalpana"
+    ],
+    "Ayurvedic Pharmacopoeia of India": [
+      "ayurvedic pharmacopoeia of india",
+      "api",
+      "ayurvedic pharmacopoeia"
+    ]
+  },
+  "law": {
+    "Patents Act 1970": [
+      "patents act",
+      "patents act 1970",
+      "patent act",
+      "section 3(p)",
+      "section 3 p"
+    ],
+    "Biological Diversity Act 2002": [
+      "biological diversity act",
+      "biodiversity act",
+      "bd act",
+      "biological diversity act 2002"
+    ],
+    "Convention on Biological Diversity": [
+      "convention on biological diversity",
+      "cbd",
+      "biological diversity convention"
+    ],
+    "Nagoya Protocol": [
+      "nagoya protocol",
+      "nagoya"
+    ],
+    "TRIPS Agreement": [
+      "trips",
+      "trips agreement",
+      "agreement on trade-related aspects of intellectual property rights"
+    ],
+    "TKDL": [
+      "tkdl",
+      "traditional knowledge digital library"
+    ],
+    "Geographical Indications Act": [
+      "geographical indications act",
+      "gi act",
+      "geographical indications of goods"
+    ],
+    "Protection of Plant Varieties and Farmers' Rights Act": [
+      "protection of plant varieties",
+      "ppvfr",
+      "plant varieties act"
+    ],
+    "AYUSH": [
+      "ayush",
+      "ministry of ayush",
+      "department of ayush"
+    ],
+    "WIPO": [
+      "wipo",
+      "world intellectual property organization"
+    ],
+    "CSIR": [
+      "csir",
+      "council of scientific and industrial research"
+    ]
+  },
+  "concept": {
+    "Trayopastambha": [
+      "trayopastambha",
+      "traya upastambha",
+      "three pillars of health",
+      "three subsupports",
+      "three sub-supports",
+      "upastambha"
+    ],
+    "Ojas": [
+      "ojas",
+      "vital essence"
+    ],
+    "Ama": [
+      "ama",
+      "undigested toxin"
+    ],
+    "Srotas": [
+      "srotas",
+      "channels of circulation",
+      "body channels"
+    ],
+    "Rasayana": [
+      "rasayana",
+      "rejuvenation therapy"
+    ],
+    "Panchakarma": [
+      "panchakarma",
+      "five cleansing procedures"
+    ],
+    "Dinacharya": [
+      "dinacharya",
+      "daily regimen"
+    ],
+    "Ritucharya": [
+      "ritucharya",
+      "seasonal regimen"
+    ],
+    "Prakriti": [
+      "prakriti",
+      "prakruti",
+      "constitution"
+    ]
+  }
+}

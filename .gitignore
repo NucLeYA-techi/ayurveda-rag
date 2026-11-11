@@ -4,6 +4,9 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 data/
+!src/ayurrag/data/
+!src/ayurrag/data/__init__.py
+!src/ayurrag/data/lexicon.json
 reports/*.json
 *.sqlite
 *.faiss
