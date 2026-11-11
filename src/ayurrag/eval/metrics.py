@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Iterable
 
 
@@ -26,6 +27,11 @@ def ndcg_at_k(ranked: list[str], gold: Iterable[str], k: int) -> float:
     dcg = sum(1.0 / math.log2(rank + 1) for rank, chunk_id in enumerate(ranked[:k], start=1) if chunk_id in gold_set)
     ideal = sum(1.0 / math.log2(rank + 1) for rank in range(1, min(len(gold_set), k) + 1))
     return dcg / ideal if ideal else 0.0
+
+
+def mentions_decision(answer: str, decision: str) -> bool:
+    """Match a PubMedQA label as a word, not as a substring of another word."""
+    return bool(re.search(rf"(?<![a-z0-9]){re.escape(decision.lower())}(?![a-z0-9])", answer.lower()))
 
 
 def aggregate(rows: list[dict], k: int) -> dict[str, float]:

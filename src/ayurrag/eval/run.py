@@ -14,7 +14,7 @@ from ..retrieve import Retriever
 from ..schema import Chunk, ScoredChunk
 from .dataset import UNANSWERABLE, build_dataset
 from .judge import LLMJudge
-from .metrics import mrr_at_k, ndcg_at_k, recall_at_k
+from .metrics import mentions_decision, mrr_at_k, ndcg_at_k, recall_at_k
 
 log = logging.getLogger(__name__)
 
@@ -216,7 +216,6 @@ def evaluate_external(settings: Settings, limit: int = 48) -> dict:
             evidence=_evidence_text(chunks),
             reference=f"{row['long_answer']}\n\nFinal decision: {row['final_decision']}",
         )
-        lowered = answer.answer.lower()
         records.append(
             {
                 "pubid": row["pubid"],
@@ -224,7 +223,7 @@ def evaluate_external(settings: Settings, limit: int = 48) -> dict:
                 "final_decision": row["final_decision"],
                 "answer": answer.answer,
                 "citations": [citation.model_dump() for citation in answer.citations],
-                "decision_mentioned": row["final_decision"] in lowered,
+                "decision_mentioned": mentions_decision(answer.answer, row["final_decision"]),
                 "judge": judged,
             }
         )

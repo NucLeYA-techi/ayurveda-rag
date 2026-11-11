@@ -113,7 +113,9 @@ correctness, groundedness, completeness and citation quality. Results are writte
 `data/artifacts/eval_report.{json,md}`. Judge scores are cached in SQLite, so re-runs
 are cheap.
 
-See `data/artifacts/eval_report.md` for the current numbers.
+See [`docs/evaluation.md`](docs/evaluation.md) for the full protocol, every run,
+per-source breakdowns, and caveats; `data/artifacts/eval_report.md` is the compact
+generated report.
 
 ### End-to-end answer quality (60 domain questions)
 
@@ -154,10 +156,12 @@ domain retrieval.
 | completeness | 3.89 / 5 |
 | citation quality | 4.81 / 5 |
 | harmful overreach rate | 0.0 |
-| final decision mentioned | 0.396 |
+| final decision mentioned | 0.3125 |
 
 The low decision-mention rate is expected: the assistant is prompted to explain
-evidence, not to emit a bare yes/no label. Completeness is lower than
+evidence, not to emit a bare yes/no label. (`decision_mentioned` is a
+token-boundary match; an earlier substring check inflated the value to 0.396
+because `no` matched inside words such as `not`.) Completeness is lower than
 groundedness because many gold answers include study-design details.
 
 ### Retrieval ablations (180 questions)
@@ -174,14 +178,14 @@ paraphrases that share few surface terms, which this benchmark under-represents.
 | dense (bge-small-en-v1.5) | 0.811 | 0.839 | 0.878 | 0.723 | 0.751 |
 | hybrid (equal-weight RRF) | 0.872 | 0.933 | 0.961 | 0.800 | 0.832 |
 | hybrid convex fusion (0.8/0.2) | 0.950 | 0.961 | 0.967 | 0.874 | 0.895 |
-| hybrid convex + cross-encoder rerank | 0.950 | 0.972 | 0.978 | 0.889 | 0.910 |
+| hybrid convex + cross-encoder rerank | 0.961 | 0.972 | 0.978 | 0.890 | 0.910 |
 | **default: + alias expansion** | **0.961** | **0.972** | **0.978** | **0.888** | **0.909** |
-| + subquery decomposition + entity graph | 0.939 | 0.961 | 0.983 | 0.859 | 0.885 |
+| + subquery decomposition + entity graph | 0.961 | 0.972 | 0.978 | 0.888 | 0.909 |
 
 The shipped answer pipeline is the convex hybrid + reranker: it beats BM25 on
 every reported metric while keeping a semantic channel for paraphrases. The last
-row is a recall-oriented variant; graph/decomposition expansion is therefore
-opt-in (`graph_expansion: true`, `max_subqueries: 3`) rather than the default.
+row adds graph/decomposition expansion but has no material gain over the default,
+so that path remains opt-in (`graph_expansion: true`, `max_subqueries: 3`).
 `ayurrag search` exposes `--no-rerank`, `--no-expansion` and source filters for
 ablation-style use.
 
