@@ -38,12 +38,22 @@ class ChunkStore:
                 PRIMARY KEY (chunk_id, entity)
             );
             CREATE INDEX IF NOT EXISTS idx_entity ON chunk_entities(entity);
+            CREATE TABLE IF NOT EXISTS entity_edges (
+                entity_a TEXT,
+                entity_b TEXT,
+                weight REAL,
+                PRIMARY KEY (entity_a, entity_b)
+            );
+            CREATE INDEX IF NOT EXISTS idx_edge_a ON entity_edges(entity_a);
+            CREATE INDEX IF NOT EXISTS idx_edge_b ON entity_edges(entity_b);
             """
         )
         self.conn.commit()
 
     def clear(self) -> None:
-        self.conn.executescript("DELETE FROM chunks; DELETE FROM chunk_entities;")
+        self.conn.executescript(
+            "DELETE FROM chunks; DELETE FROM chunk_entities; DELETE FROM entity_edges;"
+        )
         self.conn.commit()
 
     def add_chunks(self, chunks: list[Chunk]) -> None:
@@ -101,6 +111,51 @@ class ChunkStore:
             return set(self.all_ids())
         sql = "SELECT chunk_id FROM chunks WHERE " + " AND ".join(clauses)
         return {row[0] for row in self.conn.execute(sql, params)}
+
+    def rebuild_entity_graph(self) -> int:
+        """Build co-occurrence edges between entities in the same chunk.
+
+        This is the lightweight knowledge-graph layer: one hop from a query
+        entity reaches entities that co-occur with it in classical passages,
+        patents, papers or legal text. It is not an LLM-extracted semantic KG.
+        """
+        from collections import Counter
+
+        self.conn.execute("DELETE FROM entity_edges")
+        by_chunk: dict[str, list[str]] = {}
+        for chunk_id, entity in self.conn.execute("SELECT chunk_id, entity FROM chunk_entities"):
+            by_chunk.setdefault(chunk_id, []).append(entity)
+        edges: Counter[tuple[str, str]] = Counter()
+        for entities in by_chunk.values():
+            unique = sorted(set(entities))
+            for index, left in enumerate(unique):
+                for right in unique[index + 1 :]:
+                    edges[(left, right)] += 1
+        self.conn.executemany(
+            "INSERT OR REPLACE INTO entity_edges VALUES (?,?,?)",
+            [(left, right, float(weight)) for (left, right), weight in edges.items()],
+        )
+        self.conn.commit()
+        return len(edges)
+
+    def related_entities(self, entities: list[str], limit: int = 10) -> list[str]:
+        if not entities:
+            return []
+        from collections import Counter
+
+        marks = ",".join("?" * len(entities))
+        rows = self.conn.execute(
+            f"SELECT entity_b, weight FROM entity_edges WHERE entity_a IN ({marks}) "
+            f"UNION ALL "
+            f"SELECT entity_a, weight FROM entity_edges WHERE entity_b IN ({marks})",
+            [*entities, *entities],
+        )
+        scores: Counter[str] = Counter()
+        source = set(entities)
+        for neighbor, weight in rows:
+            if neighbor not in source:
+                scores[neighbor] += float(weight)
+        return [entity for entity, _ in scores.most_common(limit)]
 
     def chunks_for_entities(self, entities: list[str], limit: int = 200) -> list[str]:
         if not entities:

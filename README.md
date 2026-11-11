@@ -20,12 +20,13 @@ flowchart LR
     end
     C & P & T & L --> N[Normalizers<br/>OCR cleanup, structure]
     N --> K[Structure-aware chunker<br/>verse/section citations]
-    K --> S[(SQLite chunk store<br/>+ entity postings)]
+    K --> S[(SQLite chunk store<br/>+ entity postings + co-occurrence edges)]
     K --> B[(BM25 / bm25s)]
     K --> D[(FAISS<br/>bge-small-en-v1.5)]
-    S & B & D --> H[Hybrid retrieval<br/>BM25 + dense, RRF]
-    H --> E[Entity graph expansion<br/>lexicon aliases]
-    E --> R[Cross-encoder reranker<br/>ms-marco-MiniLM-L-6]
+    Q[Query planning<br/>entity aliases, optional decomposition] --> H
+    S & B & D --> H[Hybrid retrieval<br/>score-normalized convex fusion]
+    H --> E[Optional entity-graph<br/>1-hop expansion]
+    E --> R[Cross-encoder reranker<br/>blended with first-stage score]
     R --> G[Grounded generator<br/>evidence-only prompt]
     G --> V[Citation verifier<br/>NLI entailment<br/>nli-MiniLM2-L6]
     V --> A[Answer + citations<br/>+ evidence]
@@ -34,9 +35,17 @@ flowchart LR
 - **Chunking**: classical texts are grouped by verse ranges, legal texts by section,
   literature by abstract; long units are split with overlap. Citations are exact
   (`Charaka Samhita, Sutra Sthana 1.1–1.3`, `Patents Act 1970, Section 3 — What are not inventions`).
+- **Retrieval**: BM25 and dense scores are min-max normalized per query and fused
+  with a convex combination (0.8 lexical / 0.2 dense by default), which beat
+  equal-weight RRF on every metric. A cross-encoder reranks the top candidates and
+  its score is blended 50/50 with the first-stage score, so lexical exact matches
+  are not thrown away. Graph expansion and query decomposition are implemented and
+  measurable but disabled by default: the combined variant improved
+  `R@20` while hurting early precision.
 - **Terminology**: a curated lexicon maps Sanskrit, transliterated, common and botanical
-  names (`ashwagandha` ↔ `Withania somnifera` ↔ `asgandha`) and is used for query
-  expansion and entity-graph expansion.
+  names (`ashwagandha` ↔ `Withania somnifera` ↔ `asgandha`). Query planning can add
+  alias-only and decomposed subqueries as separately weighted retrieval variants;
+  entity co-occurrence edges (`entity_edges`) support one-hop graph expansion.
 - **Generation**: the model receives only numbered evidence, must cite `[S#]` per sentence,
   must set `insufficient_evidence` when the corpus cannot answer, and is checked afterwards
   by an NLI cross-encoder (`cross-encoder/nli-deberta-v3-small`, premise=evidence).
@@ -44,8 +53,9 @@ flowchart LR
   snowballs from 16 verified Ayurveda/herbal publication numbers through citations and
   similar-document links, reading pages via the public `r.jina.ai` reader when direct
   access is blocked. Only public abstracts/claims are stored.
-- **Evaluation**: retrieval ablations (BM25 / dense / hybrid / +expansion / +rerank / full)
-  and end-to-end LLM-judge scores, plus citation precision and refusal on unanswerable questions.
+- **Evaluation**: retrieval ablations (BM25 / dense / equal-RRF / convex hybrid /
+  +rerank / full expansion+graph) and end-to-end LLM-judge scores, plus citation
+  precision and refusal on unanswerable questions.
 
 ## Quickstart
 
@@ -66,19 +76,20 @@ set `AYURRAG_LLM_API_KEY` for a hosted endpoint.
 ## Evaluation
 
 ```bash
-ayurrag eval --kind all --limit 100
+ayurrag eval --kind all --limit 60          # default retrieval + QA + external + refusal
+ayurrag eval --kind retrieval --limit 180 --ablations  # full retrieval table
 ```
 
 This builds a domain retrieval benchmark from held-out passages (queries generated
 from a single passage, so the gold chunk is unique; the cached benchmark has 180
-questions), runs retrieval ablations, and judges end-to-end answers on correctness,
-groundedness, completeness and citation quality. Results are written to
+questions), runs retrieval ablations when asked, and judges end-to-end answers on
+correctness, groundedness, completeness and citation quality. Results are written to
 `data/artifacts/eval_report.{json,md}`. Judge scores are cached in SQLite, so re-runs
 are cheap.
 
 See `data/artifacts/eval_report.md` for the current numbers.
 
-### End-to-end answer quality (80 domain questions)
+### End-to-end answer quality (60 domain questions)
 
 Same pipeline as `ayurrag ask`; answers are scored by an independent LLM judge
 (1–5) against the gold passage and the retrieved evidence, and citations are
@@ -86,20 +97,20 @@ checked by the NLI verifier and by the judge.
 
 | metric | score |
 |---|---|
-| correctness | 4.43 / 5 |
-| groundedness | 3.58 / 5 |
-| completeness | 4.34 / 5 |
-| citation quality (judge) | 3.27 / 5 |
+| correctness | 4.58 / 5 |
+| groundedness | 3.67 / 5 |
+| completeness | 4.49 / 5 |
+| citation quality (judge) | 3.42 / 5 |
 | harmful overreach rate | 0.0 |
-| answers with `insufficient_evidence` | 0.213 |
-| citation coverage (sentences with a marker) | 0.842 |
-| citation precision (NLI, strict) | 0.423 |
+| answers with `insufficient_evidence` | 0.15 |
+| citation coverage (sentences with a marker) | 0.890 |
+| citation precision (NLI, strict) | 0.468 |
 | refusal rate on 15 unanswerable questions | 1.00 |
 
 `citation precision (NLI)` is deliberately conservative: a sentence is credited
 only when its atomic claims are entailed by the cited passage under a small
 CPU cross-encoder. Long, abstractive sentences and OCR/section fragments depress
-it even when a human judge accepts the citation (judge citation quality 3.27/5).
+it even when a human judge accepts the citation (judge citation quality 3.42/5).
 Unsupported citations are surfaced as `supported: false` in the API rather than
 silently removed; downstream users see exactly what the verifier flagged.
 
@@ -135,18 +146,18 @@ paraphrases that share few surface terms, which this benchmark under-represents.
 |---|---|---|---|---|---|
 | BM25 | 0.944 | 0.967 | 0.967 | 0.860 | 0.886 |
 | dense (bge-small-en-v1.5) | 0.811 | 0.839 | 0.878 | 0.723 | 0.751 |
-| hybrid (equal RRF) | 0.872 | 0.933 | 0.961 | 0.800 | 0.832 |
-| hybrid + lexicon expansion | 0.867 | 0.917 | 0.972 | 0.798 | 0.827 |
-| BM25 + lexicon expansion | 0.939 | 0.967 | 0.967 | 0.863 | 0.888 |
-| weighted hybrid (8:1) + expansion | 0.944 | 0.961 | 0.967 | 0.843 | 0.873 |
-| hybrid + cross-encoder rerank | 0.922 | 0.939 | 0.956 | 0.855 | 0.876 |
-| full pipeline | 0.922 | 0.939 | 0.956 | 0.855 | 0.876 |
+| hybrid (equal-weight RRF) | 0.872 | 0.933 | 0.961 | 0.800 | 0.832 |
+| hybrid convex fusion (0.8/0.2) | 0.950 | 0.961 | 0.967 | 0.874 | 0.895 |
+| hybrid convex + cross-encoder rerank | 0.950 | 0.972 | 0.978 | 0.889 | 0.910 |
+| **default: + alias expansion** | **0.961** | **0.972** | **0.978** | **0.890** | **0.910** |
+| + subquery decomposition + entity graph | 0.939 | 0.961 | 0.983 | 0.859 | 0.885 |
 
-The shipped answer pipeline uses the full pipeline because the reranker recovers
-semantic matches that pure BM25 misses (for example, mapping "three pillars of health"
-to the classical *three subsupports*), even though it costs ~2 points of Recall@5 on
-this lexical benchmark. `ayurrag search` exposes `--no-rerank`, `--no-expansion` and
-source filters for ablation-style use.
+The shipped answer pipeline is the convex hybrid + reranker: it beats BM25 on
+every reported metric while keeping a semantic channel for paraphrases. The last
+row is a recall-oriented variant; graph/decomposition expansion is therefore
+opt-in (`graph_expansion: true`, `max_subqueries: 3`) rather than the default.
+`ayurrag search` exposes `--no-rerank`, `--no-expansion` and source filters for
+ablation-style use.
 
 ## Corpus and licensing
 
@@ -177,7 +188,7 @@ src/ayurrag/
   chunking.py  structure-aware chunking and citations
   lexicon.py   Ayurveda terminology/alias mapping
   index/       BM25 + FAISS builders
-  retrieve/    hybrid retrieval, RRF, graph expansion, reranking
+  retrieve/    query planning, convex fusion, graph expansion, reranking, MMR
   generate/    grounded answers, NLI citation verification
   eval/        benchmark builder, metrics, LLM judge, ablations
   api.py       FastAPI service

@@ -23,7 +23,8 @@ def build_indexes(settings: Settings) -> dict[str, int]:
     store = ChunkStore(settings.paths.index_dir / "corpus.sqlite")
     store.clear()
     store.add_chunks(rows)
-    log.info("store: %d chunks in %.1fs", store.count(), time.time() - start)
+    edges = store.rebuild_entity_graph()
+    log.info("store: %d chunks, %d entity edges in %.1fs", store.count(), edges, time.time() - start)
 
     start = time.time()
     bm25 = BM25Index(settings.paths.index_dir / "bm25")

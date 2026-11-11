@@ -18,10 +18,10 @@ cross terminology boundaries ("three pillars of health" vs *upastambha*).
 
 | Choice | Why | Alternatives considered |
 |---|---|---|
-| BM25 + dense hybrid, fused with RRF | lexical precision on statutes/patents + semantic recall on paraphrases; RRF is parameter-light and robust (Cormack et al., SIGIR 2009) | dense-only (DPR/Karpukhin et al. 2020), BM25-only |
+| BM25 + dense hybrid, score-normalized convex fusion | lexical precision on statutes/patents + semantic recall on paraphrases; measured better than equal-weight RRF on every metric (MRR 0.889 vs 0.800) | dense-only (DPR/Karpukhin et al. 2020), BM25-only, RRF (Cormack et al., SIGIR 2009) |
 | `bge-small-en-v1.5` | strong small CPU embedding model (C-Pack, Xiao et al. 2023); 384-d, fast on CPU, no GPU required | `e5-small`, `all-MiniLM-L6-v2`, hosted embeddings |
-| Cross-encoder rerank (`ms-marco-MiniLM-L-6-v2`) | fixes the "pillars" → *upastambha* semantic gap that first-stage retrieval misses; standard passage-reranking recipe (Nogueira & Cho 2019) | ColBERT, LLM reranker |
-| Curated Ayurveda lexicon + entity graph expansion | exact alias mapping across Sanskrit/botanical/common names, and related-entity expansion for recall | learned entity linker, GraphRAG over extracted triples (Edge et al. 2024) |
+| Cross-encoder rerank (`ms-marco-MiniLM-L-6-v2`) blended 50/50 with first-stage score | fixes the "pillars" → *upastambha* semantic gap without discarding exact lexical matches; standard passage-reranking recipe (Nogueira & Cho 2019) | ColBERT, LLM reranker, pure rerank score |
+| Curated Ayurveda lexicon + optional co-occurrence graph | exact alias mapping across Sanskrit/botanical/common names; `entity_edges` gives one-hop related-entity expansion for recall-oriented runs | learned entity linker, GraphRAG over extracted triples (Edge et al. 2024) |
 | Structure-aware chunking with verse/section citations | citation is a first-class field, not a post-hoc guess; keeps verse ranges and statutory sections intact | fixed 512-token windows |
 | Citation-constrained generation + NLI verification | every sentence must carry `[S#]`; the verifier flags unsupported citations and the API returns the flag | unconstrained answer + post-hoc attribution, Self-RAG-style reflection (Asai et al. 2023) |
 
@@ -34,7 +34,10 @@ retrieve-then-verify design is easier to audit and degrade safely.
 1. **Retrieval**: queries generated from held-out chunks (one gold chunk per
    query), stratified across all sources and two query styles. This is lexical by
    construction; it favours BM25 and is reported as such. Ablations cover BM25,
-   dense, equal/weighted RRF, query expansion, reranking and graph expansion.
+   dense, equal-weight RRF, convex fusion, blended reranking, query expansion and
+   graph expansion. The measured winner is convex fusion (0.8/0.2) + 50/50
+   rerank blend: R@10 0.972, MRR 0.889, nDCG 0.910. Expansion/graph improved
+   R@20 (0.983) but reduced early precision, so they are opt-in.
 2. **End-to-end domain QA**: 60 questions over all sources, scored by an
    independent LLM judge for correctness, groundedness, completeness and citation
    quality, plus harmful-overreach and refusal checks. Judge prompts and scores

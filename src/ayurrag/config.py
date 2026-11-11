@@ -59,14 +59,25 @@ class RetrievalConfig(BaseModel):
     bm25_top_k: int = 60
     dense_top_k: int = 60
     rrf_k: int = 60
-    bm25_weight: float = 1.0
-    dense_weight: float = 1.0
-    rerank_top_n: int = 50
+    bm25_weight: float = 0.8
+    dense_weight: float = 0.2
+    fusion: str = "convex"  # convex score fusion | rrf rank fusion
+    candidate_top_k: int = 120
+    rerank_top_n: int = 80
+    rerank_blend: float = 0.5
     final_top_k: int = 8
     reranker: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     enable_rerank: bool = True
-    graph_expansion: bool = True
+    graph_expansion: bool = False
     graph_top_k: int = 20
+    graph_weight: float = 0.08
+    graph_hops: int = 1
+    query_expansion: bool = True
+    max_subqueries: int = 0
+    subquery_weight: float = 0.2
+    mmr: bool = False
+    mmr_lambda: float = 0.75
+    mmr_pool: int = 24
 
 
 class ChunkingConfig(BaseModel):

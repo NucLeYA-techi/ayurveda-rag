@@ -53,9 +53,9 @@ def cmd_search(args: argparse.Namespace) -> None:
         top_k=args.top_k,
         source=args.source,
         corpus=args.corpus,
-        use_expansion=not args.no_expansion,
-        use_rerank=not args.no_rerank,
-        use_graph=not args.no_graph,
+        use_expansion=False if args.no_expansion else None,
+        use_rerank=False if args.no_rerank else None,
+        use_graph=False if args.no_graph else None,
     )
     for item in results:
         chunk = item.chunk
@@ -75,9 +75,9 @@ def cmd_ask(args: argparse.Namespace) -> None:
         top_k=args.top_k,
         source=args.source,
         corpus=args.corpus,
-        use_expansion=not args.no_expansion,
-        use_rerank=not args.no_rerank,
-        use_graph=not args.no_graph,
+        use_expansion=False if args.no_expansion else None,
+        use_rerank=False if args.no_rerank else None,
+        use_graph=False if args.no_graph else None,
     )
     generator = AnswerGenerator(settings)
     answer = generator.generate(args.query, chunks, model=args.model)

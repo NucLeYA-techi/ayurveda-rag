@@ -21,12 +21,10 @@ log = logging.getLogger(__name__)
 ABLATIONS: dict[str, dict] = {
     "bm25": {"use_bm25": True, "use_dense": False, "use_expansion": False, "use_rerank": False, "use_graph": False},
     "dense": {"use_bm25": False, "use_dense": True, "use_expansion": False, "use_rerank": False, "use_graph": False},
-    "hybrid": {"use_bm25": True, "use_dense": True, "use_expansion": False, "use_rerank": False, "use_graph": False, "bm25_weight": 1.0, "dense_weight": 1.0},
-    "hybrid+expand": {"use_bm25": True, "use_dense": True, "use_expansion": True, "use_rerank": False, "use_graph": False, "bm25_weight": 1.0, "dense_weight": 1.0},
-    "bm25+expand": {"use_bm25": True, "use_dense": False, "use_expansion": True, "use_rerank": False, "use_graph": False},
-    "weighted8+expand": {"use_bm25": True, "use_dense": True, "use_expansion": True, "use_rerank": False, "use_graph": False, "bm25_weight": 8.0, "dense_weight": 1.0},
-    "hybrid+rerank": {"use_bm25": True, "use_dense": True, "use_expansion": False, "use_rerank": True, "use_graph": False, "bm25_weight": 1.0, "dense_weight": 1.0},
-    "full": {"use_bm25": True, "use_dense": True, "use_expansion": True, "use_rerank": True, "use_graph": True},
+    "hybrid-rrf": {"use_bm25": True, "use_dense": True, "use_expansion": False, "use_rerank": False, "use_graph": False, "fusion": "rrf", "bm25_weight": 1.0, "dense_weight": 1.0},
+    "hybrid-convex": {"use_bm25": True, "use_dense": True, "use_expansion": False, "use_rerank": False, "use_graph": False, "fusion": "convex", "bm25_weight": 0.8, "dense_weight": 0.2},
+    "hybrid-convex+rerank": {"use_bm25": True, "use_dense": True, "use_expansion": False, "use_rerank": True, "use_graph": False, "fusion": "convex", "bm25_weight": 0.8, "dense_weight": 0.2, "rerank_blend": 0.5},
+    "full-v2": {"use_bm25": True, "use_dense": True, "use_expansion": True, "use_rerank": True, "use_graph": True, "max_subqueries": 3},
 }
 
 
@@ -40,33 +38,41 @@ def load_dataset(settings: Settings, sample_size: int) -> list[dict]:
     return rows[:sample_size] if sample_size else rows
 
 
+def _retrieval_summary(rows: list[dict], retriever: Retriever, flags: dict) -> dict:
+    per_query = []
+    for row in rows:
+        hits = retriever.search(row["query"], top_k=20, **flags)
+        ranked = [hit.chunk.chunk_id for hit in hits]
+        record = {}
+        for k in (5, 10, 20):
+            record[f"recall@{k}"] = recall_at_k(ranked, row["gold_chunk_ids"], k)
+            record[f"mrr@{k}"] = mrr_at_k(ranked, row["gold_chunk_ids"], k)
+            record[f"ndcg@{k}"] = ndcg_at_k(ranked, row["gold_chunk_ids"], k)
+        record["source"] = row["source"]
+        per_query.append(record)
+    summary: dict[str, float | int | dict] = {"n": len(per_query)}
+    for k in (5, 10, 20):
+        for metric in ("recall", "mrr", "ndcg"):
+            key = f"{metric}@{k}"
+            summary[key] = round(statistics.fmean(row[key] for row in per_query), 4) if per_query else 0.0
+    breakdown = {}
+    for source in sorted({row["source"] for row in per_query}):
+        subset = [row for row in per_query if row["source"] == source]
+        breakdown[source] = round(statistics.fmean(row["recall@10"] for row in subset), 4)
+    summary["recall@10_by_source"] = breakdown
+    return summary
+
+
 def evaluate_retrieval(settings: Settings, rows: list[dict], retriever: Retriever) -> dict[str, dict]:
     results: dict[str, dict] = {}
-    ks = (5, 10, 20)
     for name, flags in ABLATIONS.items():
-        per_query = []
-        for row in rows:
-            hits = retriever.search(row["query"], top_k=20, **flags)
-            ranked = [hit.chunk.chunk_id for hit in hits]
-            record = {}
-            for k in ks:
-                record[f"recall@{k}"] = recall_at_k(ranked, row["gold_chunk_ids"], k)
-                record[f"mrr@{k}"] = mrr_at_k(ranked, row["gold_chunk_ids"], k)
-                record[f"ndcg@{k}"] = ndcg_at_k(ranked, row["gold_chunk_ids"], k)
-            record["source"] = row["source"]
-            per_query.append(record)
-        summary: dict[str, float | int] = {"n": len(per_query)}
-        for k in ks:
-            for metric in ("recall", "mrr", "ndcg"):
-                key = f"{metric}@{k}"
-                summary[key] = round(statistics.fmean(row[key] for row in per_query), 4) if per_query else 0.0
-        breakdown = {}
-        for source in sorted({row["source"] for row in per_query}):
-            subset = [row for row in per_query if row["source"] == source]
-            breakdown[source] = round(statistics.fmean(row["recall@10"] for row in subset), 4)
-        summary["recall@10_by_source"] = breakdown
-        results[name] = summary
-        log.info("retrieval %s: recall@10=%.3f ndcg@10=%.3f", name, summary["recall@10"], summary["ndcg@10"])
+        results[name] = _retrieval_summary(rows, retriever, flags)
+        log.info(
+            "retrieval %s: recall@10=%.3f ndcg@10=%.3f",
+            name,
+            results[name]["recall@10"],
+            results[name]["ndcg@10"],
+        )
     return results
 
 
@@ -280,10 +286,11 @@ def run_eval(settings: Settings, kind: str = "all", limit: int = 100, ablations:
     payload: dict = json.loads(report_path.read_text()) if report_path.exists() else {}
     if kind in ("retrieval", "all"):
         retriever = Retriever(settings)
-        if ablations:
-            payload["retrieval"] = evaluate_retrieval(settings, rows, retriever)
-        else:
-            payload["retrieval"] = evaluate_retrieval(settings, rows, retriever)
+        payload["retrieval"] = (
+            evaluate_retrieval(settings, rows, retriever)
+            if ablations
+            else {"default-v2": _retrieval_summary(rows, retriever, {})}
+        )
     if kind in ("generation", "all"):
         payload["generation"] = evaluate_generation(settings, rows, limit=min(limit, 80))
         payload["refusal"] = evaluate_refusal(settings)
