@@ -175,7 +175,7 @@ paraphrases that share few surface terms, which this benchmark under-represents.
 | hybrid (equal-weight RRF) | 0.872 | 0.933 | 0.961 | 0.800 | 0.832 |
 | hybrid convex fusion (0.8/0.2) | 0.950 | 0.961 | 0.967 | 0.874 | 0.895 |
 | hybrid convex + cross-encoder rerank | 0.950 | 0.972 | 0.978 | 0.889 | 0.910 |
-| **default: + alias expansion** | **0.961** | **0.972** | **0.978** | **0.890** | **0.910** |
+| **default: + alias expansion** | **0.961** | **0.972** | **0.978** | **0.888** | **0.909** |
 | + subquery decomposition + entity graph | 0.939 | 0.961 | 0.983 | 0.859 | 0.885 |
 
 The shipped answer pipeline is the convex hybrid + reranker: it beats BM25 on
