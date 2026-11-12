@@ -1,8 +1,8 @@
 # AyurRAG — evidence-grounded Ayurveda & IPR research assistant
 
-Hybrid RAG over Ayurvedic classical texts (Charaka, Sushruta, Ashtanga Hridaya),
+Hybrid RAG over Ayurvedic classical texts (Charaka, Sushruta),
 PubMed/Europe PMC abstracts, Google Patents records, and Indian biodiversity/IPR
-statutes (Patents Act 1970, Biological Diversity Act 2002, Nagoya Protocol).
+statutes (Patents Act 1970, Biological Diversity Act 2002, Convention on Biological Diversity).
 
 Core principle: **Retrieve → Correlate → Explain → Cite → let the expert decide.**
 The system never gives medical advice or legal conclusions; every legal statement is
@@ -13,10 +13,10 @@ surfaced as a *potentially relevant provision*.
 ```mermaid
 flowchart LR
     subgraph Sources
-        C[Charaka / Sushruta<br/>Ashtanga Hridaya]
+        C[Charaka / Sushruta]
         P[Europe PMC<br/>abstracts]
         T[Google Patents<br/>abstracts + claims]
-        L[Patents Act, BD Act<br/>CBD, Nagoya]
+        L[Patents Act, BD Act<br/>CBD]
     end
     C & P & T & L --> N[Normalizers<br/>OCR cleanup, structure]
     N --> K[Structure-aware chunker<br/>verse/section citations]
@@ -217,10 +217,9 @@ ablation-style use.
 |---|---|---|
 | Charaka Samhita (Sanskrit/English) | verses | public domain |
 | Sushruta Samhita | passages | public domain |
-| Ashtanga Hridaya | passages | public domain |
 | Europe PMC / PubMed | titles + abstracts | NLM / publisher terms; metadata only |
 | Google Patents | public patent abstracts/claims | public records |
-| India Code / CBD / Nagoya | statutes and treaty text | Government of India / UN |
+| Patents Act 1970, BD Act 2002, CBD | statutes and treaty text | Government of India / CBD Secretariat |
 
 All data stays local in `data/`; no source text is redistributed in this repository.
 
@@ -231,6 +230,7 @@ All data stays local in `data/`; no source text is redistributed in this reposit
 - Legal chunk boundaries are approximate for PDFs with running headers.
 - The NLI verifier is a small CPU model; it flags unsupported citations, not legal correctness.
 - BhashaBench-Ayur is gated (HF terms); it is not bundled, so reported numbers use the in-repo benchmark.
+- `Ashtanga Hridaya` and `Nagoya Protocol` raw files exist under `data/raw/`, but they are not yet parsed into the indexed corpus; the reported numbers exclude them.
 
 ## Layout
 

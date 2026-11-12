@@ -36,7 +36,7 @@ it measures grounded answering and citation discipline only.
 | PubMed / Europe PMC | literature | 16,649 |
 | Sushruta Samhita | classical | 1,871 |
 | Charaka Samhita | classical | 1,737 |
-| India Code / CBD / Nagoya | legal | 243 |
+| Patents Act / BD Act / CBD | legal | 243 |
 | Google Patents | patent | 68 |
 | **Total** | | **20,568** |
 
