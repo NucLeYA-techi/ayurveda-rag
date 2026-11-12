@@ -8,6 +8,7 @@ import logging
 import random
 import sqlite3
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -35,9 +36,21 @@ class ResponseCache:
         self._conn.commit()
 
     @staticmethod
-    def key(model: str, messages: list[dict[str, str]], temperature: float, max_tokens: int) -> str:
+    def key(
+        model: str,
+        messages: list[dict[str, str]],
+        temperature: float,
+        max_tokens: int,
+        provider: str = "",
+    ) -> str:
         payload = json.dumps(
-            {"model": model, "messages": messages, "t": temperature, "m": max_tokens},
+            {
+                "provider": provider,
+                "model": model,
+                "messages": messages,
+                "t": temperature,
+                "m": max_tokens,
+            },
             sort_keys=True,
             ensure_ascii=False,
         )
@@ -55,25 +68,88 @@ class ResponseCache:
         self._conn.commit()
 
 
+@dataclass(frozen=True)
+class _Provider:
+    name: str
+    client: httpx.Client
+    model: str
+    judge_model: str
+
+
+def _provider_client(
+    base_url: str,
+    api_key: str,
+    timeout: float,
+    user_agent: str | None = None,
+) -> httpx.Client:
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+    }
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    if user_agent:
+        headers["User-Agent"] = user_agent
+    return httpx.Client(
+        base_url=base_url.rstrip("/"),
+        timeout=httpx.Timeout(timeout, connect=15.0),
+        headers=headers,
+    )
+
+
+def _non_retryable(exc: Exception) -> bool:
+    """Auth/request errors will not improve by retrying the same provider."""
+    text = str(exc)
+    return any(f"HTTP {code}" in text for code in (400, 401, 403, 404, 422, 426))
+
+
 class LLMClient:
     def __init__(self, cfg: LLMConfig, cache_path: Path | None = None):
         self.cfg = cfg
         self.api_key = cfg.resolved_api_key()
         self.cache = ResponseCache(cache_path) if cache_path else None
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "text/event-stream",
-        }
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        self._client = httpx.Client(
-            base_url=cfg.base_url.rstrip("/"),
-            timeout=httpx.Timeout(cfg.timeout, connect=15.0),
-            headers=headers,
-        )
+        self._providers = [
+            _Provider(
+                name="primary",
+                client=_provider_client(cfg.base_url, self.api_key, cfg.timeout),
+                model=cfg.model,
+                judge_model=cfg.judge_model,
+            )
+        ]
+        if cfg.fallback:
+            fallback_key = cfg.fallback.resolved_api_key()
+            if not fallback_key:
+                log.warning(
+                    "fallback provider %s has no API key (%s); disabled",
+                    cfg.fallback.name,
+                    cfg.fallback.api_key_env,
+                )
+            else:
+                self._providers.append(
+                    _Provider(
+                        name=cfg.fallback.name,
+                        client=_provider_client(
+                            cfg.fallback.base_url,
+                            fallback_key,
+                            cfg.timeout,
+                            cfg.fallback.user_agent,
+                        ),
+                        model=cfg.fallback.model,
+                        judge_model=cfg.fallback.judge_model,
+                    )
+                )
+        self._client = self._providers[0].client
 
     def close(self) -> None:
-        self._client.close()
+        for provider in self._providers:
+            provider.client.close()
+
+    def _model_for(self, provider: _Provider, requested: str | None) -> str:
+        if requested is None or requested == self.cfg.model:
+            return provider.model
+        if requested == self.cfg.judge_model:
+            return provider.judge_model
+        return provider.model
 
     def chat(
         self,
@@ -84,41 +160,61 @@ class LLMClient:
         max_tokens: int | None = None,
         use_cache: bool = True,
     ) -> str:
-        model = model or self.cfg.model
         temperature = self.cfg.temperature if temperature is None else temperature
         max_tokens = max_tokens or self.cfg.max_tokens
-        key = ResponseCache.key(model, messages, temperature, max_tokens)
-        if use_cache and self.cache:
-            cached = self.cache.get(key)
-            if cached is not None:
-                return cached
-
-        payload = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": True,
-        }
         last_error: Exception | None = None
-        for attempt in range(self.cfg.max_retries):
-            try:
-                text = self._stream(payload)
-                if not text.strip():
-                    raise LLMError("empty completion")
-                if use_cache and self.cache:
-                    self.cache.put(key, model, messages, text)
-                return text
-            except (httpx.HTTPError, LLMError, json.JSONDecodeError) as exc:
-                last_error = exc
-                delay = min(45.0, (2**attempt) + random.random() * 1.5)
-                log.warning("LLM call failed (%s); retrying in %.1fs", exc, delay)
-                time.sleep(delay)
-        raise LLMError(f"LLM call failed after {self.cfg.max_retries} attempts: {last_error}")
 
-    def _stream(self, payload: dict[str, Any]) -> str:
+        for index, provider in enumerate(self._providers):
+            model_name = self._model_for(provider, model)
+            key = ResponseCache.key(model_name, messages, temperature, max_tokens, provider.name)
+            if use_cache and self.cache:
+                cached = self.cache.get(key)
+                if cached is not None:
+                    return cached
+
+            payload = {
+                "model": model_name,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stream": True,
+            }
+            attempts = self.cfg.max_retries if provider.name == "primary" else min(2, self.cfg.max_retries)
+            for attempt in range(attempts):
+                try:
+                    text = self._stream(provider.client, payload)
+                    if not text.strip():
+                        raise LLMError("empty completion")
+                    if use_cache and self.cache:
+                        self.cache.put(key, model_name, messages, text)
+                    return text
+                except (httpx.HTTPError, LLMError, json.JSONDecodeError) as exc:
+                    last_error = exc
+                    if _non_retryable(exc):
+                        break
+                    if attempt + 1 < attempts:
+                        delay = min(45.0, (2**attempt) + random.random() * 1.5)
+                        log.warning(
+                            "LLM provider %s failed (%s); retrying in %.1fs",
+                            provider.name,
+                            exc,
+                            delay,
+                        )
+                        time.sleep(delay)
+            if index + 1 < len(self._providers):
+                log.warning(
+                    "LLM provider %s failed (%s); trying %s",
+                    provider.name,
+                    last_error,
+                    self._providers[index + 1].name,
+                )
+        raise LLMError(
+            f"LLM call failed after {len(self._providers)} provider(s): {last_error}"
+        )
+
+    def _stream(self, client: httpx.Client, payload: dict[str, Any]) -> str:
         pieces: list[str] = []
-        with self._client.stream("POST", "/chat/completions", json=payload) as response:
+        with client.stream("POST", "/chat/completions", json=payload) as response:
             if response.status_code >= 400:
                 body = response.read().decode("utf-8", "replace")[:500]
                 raise LLMError(f"HTTP {response.status_code}: {body}")

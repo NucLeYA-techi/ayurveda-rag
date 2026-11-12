@@ -410,6 +410,7 @@ These are correctness checks, not additional quality benchmarks.
 ```bash
 uv sync
 export AYURRAG_LLM_API_KEY=...        # or put it in .env (auto-loaded)
+export AYURRAG_FALLBACK_API_KEY=...   # optional secondary provider
 
 # retrieval ablations, 180 questions
 PYTHONPATH=src .venv/bin/ayurrag eval --kind retrieval --limit 180 --ablations

@@ -75,9 +75,26 @@ The default is DeepSeek's official API (`https://api.deepseek.com/v1`) with
 Put the bearer token in `.env`; it is gitignored and loaded automatically:
 
 ```bash
-printf 'AYURRAG_LLM_API_KEY=%s\n' "$YOUR_KEY" > .env
+printf 'AYURRAG_LLM_API_KEY=%s\n' "$YOUR_KEY" >> .env
 chmod 600 .env
 ayurrag serve
+```
+
+A secondary OpenAI-compatible endpoint can be configured under `llm.fallback`.
+When the primary returns an auth/request error, or keeps failing after retries,
+the client retries generation and judge calls against the fallback with its own
+model mapping. Its token is read from `AYURRAG_FALLBACK_API_KEY` (also in `.env`).
+If that variable is absent the fallback is disabled with a warning.
+
+```yaml
+llm:
+  fallback:
+    name: wand
+    base_url: https://api2.manojhv.tech/v1
+    model: deepseek-v4.1-flash-free
+    judge_model: deepseek-v4.1-flash-free
+    api_key_env: AYURRAG_FALLBACK_API_KEY
+    user_agent: opencode/1.18.0
 ```
 
 You can still override the token with an exported `AYURRAG_LLM_API_KEY`; the

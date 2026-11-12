@@ -8,6 +8,13 @@ llm:
   base_url: https://api.deepseek.com/v1
   model: deepseek-flash
   judge_model: deepseek-flash
+  fallback:
+    name: wand
+    base_url: https://api2.manojhv.tech/v1
+    model: deepseek-v4.1-flash-free
+    judge_model: deepseek-v4.1-flash-free
+    api_key_env: AYURRAG_FALLBACK_API_KEY
+    user_agent: opencode/1.18.0
   api_key_env: AYURRAG_LLM_API_KEY
   temperature: 0.1
   max_tokens: 1800

@@ -33,10 +33,26 @@ class PathsConfig(BaseModel):
                 setattr(self, name, (root / path).resolve())
 
 
+class LLMProviderConfig(BaseModel):
+    """Secondary OpenAI-compatible provider used when the primary fails."""
+
+    name: str = "wand"
+    base_url: str
+    model: str
+    judge_model: str
+    api_key_env: str = "AYURRAG_FALLBACK_API_KEY"
+    api_key: str | None = None
+    user_agent: str | None = None
+
+    def resolved_api_key(self) -> str:
+        return self.api_key or os.environ.get(self.api_key_env, "")
+
+
 class LLMConfig(BaseModel):
     base_url: str = "https://api.deepseek.com/v1"
     model: str = "deepseek-flash"
     judge_model: str = "deepseek-flash"
+    fallback: LLMProviderConfig | None = None
     api_key_env: str = "AYURRAG_LLM_API_KEY"
     api_key: str | None = None
     temperature: float = 0.1
