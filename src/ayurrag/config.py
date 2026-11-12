@@ -12,10 +12,12 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = REPO_ROOT / "configs" / "default.yaml"
+load_dotenv(REPO_ROOT / ".env", override=False)
 
 
 class PathsConfig(BaseModel):
@@ -32,9 +34,9 @@ class PathsConfig(BaseModel):
 
 
 class LLMConfig(BaseModel):
-    base_url: str = "http://127.0.0.1:8000/v1"
-    model: str = "deepseek-v4.1-flash-free"
-    judge_model: str = "gemini-3.5-flash-lite"
+    base_url: str = "https://api.deepseek.com/v1"
+    model: str = "deepseek-v4-pro"
+    judge_model: str = "deepseek-flash"
     api_key_env: str = "AYURRAG_LLM_API_KEY"
     api_key: str | None = None
     temperature: float = 0.1
@@ -88,7 +90,7 @@ class ChunkingConfig(BaseModel):
 
 
 class EvalConfig(BaseModel):
-    judge_model: str = "gemini-3.5-flash-lite"
+    judge_model: str = "deepseek-flash"
     sample_size: int = 200
     seed: int = 13
 

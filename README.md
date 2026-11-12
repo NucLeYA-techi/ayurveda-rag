@@ -69,14 +69,19 @@ ayurrag search "ashwagandha clinical trials" --source pubmed
 ayurrag serve                  # FastAPI on 127.0.0.1:8080
 ```
 
-The LLM endpoint is OpenAI-compatible and configured in `configs/default.yaml`
-(`http://127.0.0.1:8000/v1` by default). Set `AYURRAG_LLM_API_KEY` to the bearer
-token the endpoint expects:
+The LLM endpoint is OpenAI-compatible and configured in `configs/default.yaml`.
+The default is DeepSeek's official API (`https://api.deepseek.com/v1`) with
+`deepseek-v4-pro` for generation and `deepseek-flash` for the evaluation judge.
+Put the bearer token in `.env`; it is gitignored and loaded automatically:
 
 ```bash
-export AYURRAG_LLM_API_KEY="..."
+printf 'AYURRAG_LLM_API_KEY=%s\n' "$YOUR_KEY" > .env
+chmod 600 .env
 ayurrag serve
 ```
+
+You can still override the token with an exported `AYURRAG_LLM_API_KEY`; the
+environment takes precedence over `.env`.
 
 ## Web UI and API
 

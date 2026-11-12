@@ -56,9 +56,14 @@ it measures grounded answering and citation discipline only.
 | Judge | `glm-5.3-flash-free`, temperature 0.0 |
 | Citation verifier | `cross-encoder/nli-deberta-v3-small` |
 
-The generator and judge are served through the local OpenAI-compatible proxy
+The generator and judge are served through the OpenAI-compatible endpoint
 configured by `llm.base_url`; all prompts and scores are cached in
 `data/artifacts/llm_cache.sqlite` and `data/artifacts/judge_cache.sqlite`.
+
+The reported generation/judge scores below were collected with the earlier
+proxy models `deepseek-v4.1-flash-free` and `glm-5.3-flash-free`. The current
+default is `deepseek-v4-pro` + `deepseek-flash`; changing either model is a new
+configuration and requires re-running the generation evaluation.
 
 ## 3. Benchmarks
 
@@ -402,7 +407,7 @@ These are correctness checks, not additional quality benchmarks.
 
 ```bash
 uv sync
-export AYURRAG_LLM_API_KEY=...        # required for generation and judge calls
+export AYURRAG_LLM_API_KEY=...        # or put it in .env (auto-loaded)
 
 # retrieval ablations, 180 questions
 PYTHONPATH=src .venv/bin/ayurrag eval --kind retrieval --limit 180 --ablations

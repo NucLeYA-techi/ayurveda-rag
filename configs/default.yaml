@@ -5,9 +5,9 @@ paths:
   artifacts_dir: data/artifacts
 
 llm:
-  base_url: http://127.0.0.1:8000/v1
-  model: deepseek-v4.1-flash-free
-  judge_model: glm-5.3-flash-free
+  base_url: https://api.deepseek.com/v1
+  model: deepseek-v4-pro
+  judge_model: deepseek-flash
   api_key_env: AYURRAG_LLM_API_KEY
   temperature: 0.1
   max_tokens: 1800
@@ -53,6 +53,6 @@ chunking:
   min_chars: 40
 
 eval:
-  judge_model: glm-5.3-flash-free
+  judge_model: deepseek-flash
   sample_size: 200
   seed: 13
