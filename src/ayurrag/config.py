@@ -35,7 +35,7 @@ class PathsConfig(BaseModel):
 
 class LLMConfig(BaseModel):
     base_url: str = "https://api.deepseek.com/v1"
-    model: str = "deepseek-v4-pro"
+    model: str = "deepseek-flash"
     judge_model: str = "deepseek-flash"
     api_key_env: str = "AYURRAG_LLM_API_KEY"
     api_key: str | None = None

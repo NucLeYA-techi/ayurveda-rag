@@ -62,8 +62,10 @@ configured by `llm.base_url`; all prompts and scores are cached in
 
 The reported generation/judge scores below were collected with the earlier
 proxy models `deepseek-v4.1-flash-free` and `glm-5.3-flash-free`. The current
-default is `deepseek-v4-pro` + `deepseek-flash`; changing either model is a new
-configuration and requires re-running the generation evaluation.
+default is `deepseek-flash` for both generation and judging; changing the model
+is a new configuration and requires re-running the generation evaluation.
+Using one model for both roles can inflate judge scores through self-preference,
+so treat the new configuration's scores as directional.
 
 ## 3. Benchmarks
 

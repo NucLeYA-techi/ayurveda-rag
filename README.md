@@ -71,7 +71,7 @@ ayurrag serve                  # FastAPI on 127.0.0.1:8080
 
 The LLM endpoint is OpenAI-compatible and configured in `configs/default.yaml`.
 The default is DeepSeek's official API (`https://api.deepseek.com/v1`) with
-`deepseek-v4-pro` for generation and `deepseek-flash` for the evaluation judge.
+`deepseek-flash` for both generation and the evaluation judge.
 Put the bearer token in `.env`; it is gitignored and loaded automatically:
 
 ```bash
