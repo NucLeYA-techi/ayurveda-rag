@@ -57,6 +57,23 @@ flowchart LR
   +rerank / full expansion+graph) and end-to-end LLM-judge scores, plus citation
   precision and refusal on unanswerable questions.
 
+## Benchmarks
+
+CPU-only retrieval stack; the generator and judge are remote OpenAI-compatible
+models. Numbers are from the stored runs in `data/artifacts/eval_report.{json,md}`;
+the protocol, per-source breakdowns, and caveats are in
+[`docs/evaluation.md`](docs/evaluation.md).
+
+| benchmark | n | headline result |
+|---|---:|---|
+| Domain retrieval (shipped pipeline) | 180 | R@10 **0.972** · MRR@10 **0.888** · nDCG@10 **0.909** |
+| End-to-end domain QA (LLM judge, 1–5) | 60 (55 judged) | correctness **4.58** · groundedness **3.67** · completeness **4.49** · citation quality **3.42** |
+| Citation and safety checks | 60 | NLI coverage **0.890** · NLI precision **0.468** · harmful overreach **0.000** |
+| Refusal on unanswerable questions | 15 | **1.00** |
+| External PubMedQA (oracle contexts, LLM judge, 1–5) | 48 (47 judged) | correctness **4.30** · groundedness **4.96** · citation quality **4.81** |
+
+Full ablation tables are in [Evaluation](#evaluation) below.
+
 ## Quickstart
 
 ```bash
